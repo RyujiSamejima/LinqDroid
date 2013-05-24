@@ -1,19 +1,11 @@
 package jp.linqdroid;
 
-import java.util.Iterator;
-
-
-public class WhereSelectEnumerator<T,TResult>  extends SelectEnumerator<T,TResult> {
+public class WhereSelectEnumerator<T,TResult> extends SelectEnumerator<T,TResult> {
 	protected F1<T, Boolean> predicate;
 
 	public WhereSelectEnumerator(Iterable<T> source, F1<T,Boolean> predicate, F1<T,TResult> selector) {
 		super(source, selector);
 		this.predicate = predicate;
-	}
-
-	@Override
-	public Iterator<TResult> iterator() {
-		return this;
 	}
 
 	@Override
@@ -26,7 +18,7 @@ public class WhereSelectEnumerator<T,TResult>  extends SelectEnumerator<T,TResul
 			T obj = this.source.next();
 			//条件に合うもののみ
 			if (this.predicate.invoke(obj))
-				this.next = this.selector.invoke(obj);
+				this.next = obj;
 				return true;
 		}
 		return false;

@@ -3,7 +3,7 @@ package jp.linqdroid;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class SelectManyEnumerator<T,TResult> implements  Iterator<TResult>, Iterable<TResult> {
+public class SelectManyEnumerator<T,TResult> implements  Iterator<TResult> {
 	protected Iterator<T> source;
 	protected Enumerator<TResult> enumerator;
 	protected TResult next;
@@ -17,11 +17,6 @@ public class SelectManyEnumerator<T,TResult> implements  Iterator<TResult>, Iter
 		this.enumerator = null;
 		this.next = null;
 		this.selector = selector;
-	}
-
-	@Override
-	public Iterator<TResult> iterator() {
-		return this;
 	}
 
 	@Override

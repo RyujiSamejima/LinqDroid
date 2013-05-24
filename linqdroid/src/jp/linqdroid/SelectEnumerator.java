@@ -3,23 +3,18 @@ package jp.linqdroid;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class SelectEnumerator<T,TResult> implements Iterator<TResult>, Iterable<TResult> {
+public class SelectEnumerator<T,TResult> implements Iterator<TResult> {
 	protected Iterator<T> source;
-	protected TResult next;
 	protected F1<T,TResult> selector;
+	protected T next;
 
 	@SuppressWarnings("unused")
 	private  SelectEnumerator() { }
 
-	protected SelectEnumerator(Iterable<T> source, F1<T,TResult> selector) {
+	public SelectEnumerator(Iterable<T> source, F1<T,TResult> selector) {
 		this.source = source.iterator();
-		this.next = null;
 		this.selector = selector;
-	}
-
-	@Override
-	public Iterator<TResult> iterator() {
-		return this;
+		this.next = null;
 	}
 
 	@Override
@@ -29,7 +24,7 @@ public class SelectEnumerator<T,TResult> implements Iterator<TResult>, Iterable<
 		//次の要素が取れなければ次はない
 		if (!this.source.hasNext()) return false;
 		//次の要素を取得する
-		this.next = this.selector.invoke(this.source.next());
+		this.next = this.source.next();
 		return true;
 	}
 
@@ -40,9 +35,9 @@ public class SelectEnumerator<T,TResult> implements Iterator<TResult>, Iterable<
 			throw new NoSuchElementException();
 		}
 		//次の要素を戻り値として返却。取得済みは次回に備えてクリア
-		TResult result = this.next;
+		T result = this.next;
 		this.next = null;
-		return result;
+		return this.selector.invoke(result);
 	}
 
 	@Deprecated
@@ -52,3 +47,4 @@ public class SelectEnumerator<T,TResult> implements Iterator<TResult>, Iterable<
 	}
 
 }
+
