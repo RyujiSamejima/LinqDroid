@@ -25,7 +25,7 @@ public class XElement extends XContainer {
 	 */
 	public XElement(XName name)	{
 		super();
-		
+		this.name = name;
 	}
 	/**
 	 * XStreamingElement オブジェクトから XElement クラスの新しいインスタンスを初期化します。
@@ -36,6 +36,8 @@ public class XElement extends XContainer {
 	 * 指定した名前と内容を持つ XElement クラスの新しいインスタンスを初期化します。
 	 */
 	public XElement(XName name, Object[] ...contents) {
+		this(name);
+		this.add(contents);
 	}
 	@Override
 	public XNodeType getNodeType() {
@@ -49,14 +51,14 @@ public class XElement extends XContainer {
 	 * @return
 	 */
 	public boolean hasAttributes()	{
-		return false;
-		
+		return this.attributes.size() != 0;
 	}
 	/**
 	 * この要素が 1 つ以上の子要素を持っているかどうかを示す値を取得します。
 	 */
 	public boolean hasElements() {
-		return false;}
+		return false;
+	}
 	/**
 	 * この要素に内容が格納されていないかどうかを示す値を取得します。
 	 */

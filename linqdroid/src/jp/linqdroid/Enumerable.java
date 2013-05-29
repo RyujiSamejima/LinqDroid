@@ -1,6 +1,8 @@
 package jp.linqdroid;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -11,22 +13,38 @@ import java.util.List;
  * @param <T>
  */
 public class Enumerable<T> implements Iterable<T> {
-	protected Iterator<T> source;
+	protected Iterable<T> source;
 
 	/**
 	 * 
 	 */
 	protected Enumerable() { }
 	protected Enumerable(Iterable<T> source) { 
-		this.source = source.iterator();
-	}
-	protected Enumerable(Iterator<T> source) { 
 		this.source = source;
 	}
-
+	/**
+	 * 
+	 * @param source
+	 */
+	protected Enumerable(Iterator<T> source) { 
+		this.source = new Iterable<T>() { 
+			private Iterator<T> iterator;
+			public Iterable<T> setIterator(Iterator<T> iterator) {
+				this.iterator = iterator;
+				return this;
+			}
+			@Override
+			public Iterator<T> iterator() {
+				return iterator;
+			}
+		}.setIterator(source);
+	}
+	/**
+	 * 
+	 */
 	@Override
 	public Iterator<T> iterator() {
-		return this.source;
+		return source.iterator();
 	}
 
 	/**
@@ -46,7 +64,18 @@ public class Enumerable<T> implements Iterable<T> {
 			};
 		}.setSource(source);
 	}
-	
+	/**
+	 * 
+	 * @param array
+	 * @return
+	 */
+	public static <T> Enumerable<T> from(T[] array) {
+		return new Enumerable<T>(Arrays.asList(array));
+	}
+	/**
+	 * 
+	 * @return
+	 */
 	public static <T> Enumerable<T> getEmpty() {
 		return Enumerable.from(new Iterable<T>() 
 				{
@@ -71,6 +100,21 @@ public class Enumerable<T> implements Iterable<T> {
 					}			
 				});
 	}
+
+	/**
+	 * 
+	 * @param classType
+	 * @return
+	 */
+	public Enumerable<T> ofClass(final Class<?> classType) {
+		return new WhereEnumerable<T>(this, new F1<T,Boolean>() {
+			@Override
+			public Boolean invoke(T arg1) {
+				return (arg1.getClass() == classType);
+			}
+		});
+	}
+
 	/**
 	 * 
 	 * @param selector
@@ -86,14 +130,6 @@ public class Enumerable<T> implements Iterable<T> {
 	 */
 	public <TResult> Enumerable<TResult> select(F2<T, Integer, TResult> selector) {
 		return new SelectEnumerable<T, TResult>(this, selector);
-	}
-	public Enumerable<T> ofClass(final Class<?> classType) {
-		return new WhereEnumerable<T>(this, new F1<T,Boolean>() {
-			@Override
-			public Boolean invoke(T arg1) {
-				return (arg1.getClass() == classType);
-			}
-		});
 	}
 
 	/**
@@ -356,7 +392,11 @@ public class Enumerable<T> implements Iterable<T> {
 			}
 		}.setSecond(second));
 	}
-
+	/**
+	 * 
+	 * @param second
+	 * @return
+	 */
 	public Enumerable<T> except(Iterable<T> second) {
 		return this.concat(second).where(new F1<T,Boolean>() {
 			private List<T> firstList;
@@ -373,15 +413,284 @@ public class Enumerable<T> implements Iterable<T> {
 			}
 		}.setTarget(this, second));
 	}
+	/**
+	 * 
+	 * @param index
+	 * @return
+	 */
+	public T elementAt(int index) {
+		if (this.source instanceof List<?>) {
+			List<T> list = (List<T>)this.source;
+			return list.get(index);
+		} else {
+			return this.skip(index).first();
+		}
+	}
+	/**
+	 * 
+	 * @param index
+	 * @return
+	 */
+	public T elementOrEmptyAt(int index) {
+		if (this.source instanceof List<?>) {
+			List<T> list = (List<T>)this.source;
+			if (index < list.size()) {
+				return list.get(index);
+			} else {
+				return null;
+			}
+		} else {
+			int count = 0;
+			for (T item : this.source) {
+				if (index == count++ ) {
+					return item;
+				}
+			}
+			return null;
+		}
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T single() {
+		Iterator<T> iterator = this.source.iterator();
+		T result = null;
+		if (iterator.hasNext()) {
+			result = iterator.next();
+		}
+		if (!iterator.hasNext()) {
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T single(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		T result = null;
+		if (iterator.hasNext()) {
+			result = iterator.next();
+		}
+		if (!iterator.hasNext()) {
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T singleOrEmpty() {
+		Iterator<T> iterator = this.source.iterator();
+		T result = null;
+		if (iterator.hasNext()) {
+			result = iterator.next();
+		} else {
+			return null;
+		}
+		if (!iterator.hasNext()) {
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T singleOrEmpty(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		T result = null;
+		if (iterator.hasNext()) {
+			result = iterator.next();
+		} else {
+			return null;
+		}
+		if (!iterator.hasNext()) {
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T first() {
+		Iterator<T> iterator = this.source.iterator();
+		if (iterator.hasNext()) {
+			return iterator.next();
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T first(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		if (iterator.hasNext()) {
+			return iterator.next();
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T firstOrEmpty() {
+		Iterator<T> iterator = this.source.iterator();
+		if (iterator.hasNext()) {
+			return iterator.next();
+		}
+		return null;
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T firstOrEmpty(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		if (iterator.hasNext()) {
+			return iterator.next();
+		}
+		return null;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T last() {
+		Iterator<T> iterator = this.source.iterator();
+		if (iterator.hasNext()) {
+			T result = iterator.next();
+			while (iterator.hasNext()) {
+				result = iterator.next();
+			}
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T last(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		if (iterator.hasNext()) {
+			T result = iterator.next();
+			while (iterator.hasNext()) {
+				result = iterator.next();
+			}
+			return result;
+		}
+		throw new IndexOutOfBoundsException();
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public T lastOrEmpty() {
+		Iterator<T> iterator = this.source.iterator();
+		if (iterator.hasNext()) {
+			T result = iterator.next();
+			while (iterator.hasNext()) {
+				result = iterator.next();
+			}
+			return result;
+		}
+		return null;
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public T lastOrEmpty(F1<T,Boolean> predicate) {
+		Iterator<T> iterator = this.where(predicate).iterator();
+		if (iterator.hasNext()) {
+			T result = iterator.next();
+			while (iterator.hasNext()) {
+				result = iterator.next();
+			}
+			return result;
+		}
+		return null;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public int count() {
+		if (this.source instanceof Collection<?>) {
+			Collection<T> collection = (Collection<T>)this.source;
+			return collection.size();
+		} else {
+			int count = 0;
+			for (Iterator<T> iterator = this.source.iterator(); iterator.hasNext();) {
+				count++;
+			}
+			return count;
+		}
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public boolean all(F1<T,Boolean> predicate) {
+		for (Iterator<T> iterator = this.source.iterator(); iterator.hasNext();) {
+			if (!predicate.invoke(iterator.next()))
+				return false;
+		}
+		return true;
+	}
+	/**
+	 * 
+	 * @param predicate
+	 * @return
+	 */
+	public boolean any(F1<T,Boolean> predicate) {
+		for (Iterator<T> iterator = this.source.iterator(); iterator.hasNext();) {
+			if (!predicate.invoke(iterator.next()))
+				return true;
+		}
+		return false;
+	}
+	/**
+	 * 
+	 * @param item
+	 * @return
+	 */
+	public boolean contains(T item) {
+		for (Iterator<T> iterator = this.source.iterator(); iterator.hasNext();) {
+			if (item.equals(iterator.next()))
+				return true;
+		}
+		return false;
+	}
+	/**
+	 * 
+	 * @param dst
+	 * @return
+	 */
+	public boolean sequenceEqual(Iterable<T> dst) {
+		Iterator<T> second = dst.iterator();
+		for (Iterator<T> iterator = this.source.iterator(); iterator.hasNext();) {
+			if(!second.hasNext() || !(iterator.next().equals(second.next())))
+				return false;
+		}
+		return !second.hasNext();
+	}
 
 	/*
 	orderByDescription(NSSortDescriptor *firstObj, ...);
-	selectMany(id(^selector)(id index));
-	distinct();
-	concat(NSEnumerator *dst);
-	unions(NSEnumerator *dst);
-	intersect(NSEnumerator *dst);
-	except(NSEnumerator *dst);
 	buffer(int count);
 	toArray();
 	toMutableArray();
@@ -390,7 +699,6 @@ public class Enumerable<T> implements Iterable<T> {
 	toMutableDictionary(id(^keySelector)(id item));
 	toMutableDictionaryWithSelector(id(^keySelector)(id), id(^elementSelector)(id item));
 	toData();
-	toString();
 */
 	
 	/**
@@ -402,7 +710,4 @@ public class Enumerable<T> implements Iterable<T> {
 			action.invoke(item);
 		}
 	}
-
-	
-
 }
