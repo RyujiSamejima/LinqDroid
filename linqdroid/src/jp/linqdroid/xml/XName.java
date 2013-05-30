@@ -4,11 +4,11 @@ public final class XName implements Comparable<XName> {
     private final XNamespace namespace;
     private final String localName;
     
-    XName(final String name) {
+    public XName(final String name) {
         this(XNamespace.NONE, name);
     }
 
-    XName(final XNamespace namespace, final String localName) {
+    public XName(final XNamespace namespace, final String localName) {
         if (namespace == null) {
             throw new NullPointerException("namespace");
         }

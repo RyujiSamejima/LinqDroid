@@ -17,7 +17,7 @@ public class WhereSelectEnumerable<T,TResult> extends Enumerable<TResult> {
 			}
 			@Override
 			public Iterator<TResult> invoke() {
-				return new WhereSelectEnumerator<T, TResult>(this.source, this.predicate, this.selector);
+				return new WhereSelectEnumerator<T, TResult>(this.source.iterator(),null , this.predicate, this.selector);
 			}
 		}.setParameter(source, predicate, selector);
 	}

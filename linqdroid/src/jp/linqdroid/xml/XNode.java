@@ -16,7 +16,7 @@ public abstract class XNode extends XObject {
 	/**
 	 * この要素を指定された内容で置き換える
 	 */
-	public void replaceWith(Object[] ...contents) {
+	public void replaceWith(Object...contents) {
 		XElement parent = this.parent;
 		this.parent = null;
 		parent.nodes.remove(this);

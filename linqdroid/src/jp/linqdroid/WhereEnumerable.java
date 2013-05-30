@@ -34,7 +34,7 @@ public class WhereEnumerable<T> extends Enumerable<T> {
 
 	@Override
 	public Iterator<T> iterator() {
-		return new WhereEnumerater(this, this.predicate);
+		return new WhereEnumerater(this.source.iterator(),null , this.predicate);
 	}
 
 	@Override
@@ -47,26 +47,32 @@ public class WhereEnumerable<T> extends Enumerable<T> {
 		return new WhereSelectEnumerator<T, TResult>(this, this.predicate, selector);
 	}
 */
-	private class WhereEnumerater extends Enumerator<T> {
+	private class WhereEnumerater extends EnumeratorImple<T> {
 		protected F1<T, Boolean> predicate;
 		
-		public WhereEnumerater(Iterable<T> source, F1<T, Boolean> predicate) {
-			super(source);
+		public WhereEnumerater(Iterator<T> source, Disposable disposable, F1<T, Boolean> predicate) {
+			super(source,disposable);
 			this.predicate = predicate;
 		}
 		
 		@Override
 		public boolean hasNext() {
 			//要素取得済みなら次はある
-			if (this.next != null) return true;
-			//次の要素が取れなければ次はない
+			if (next != null) return true;
+			//破棄済みであれば次はない
+			if (status == IteratorStatus.Disposed) return false;
+			//未列挙であれば要素の有無をチェック
+			if (status == IteratorStatus.BeforeEnumeration) {
+				this.status = IteratorStatus.Enumerating;
+			}
 			while (this.source.hasNext()) {
 				//次の要素を取得する
 				T obj = this.source.next();
 				//条件に合うもののみ
-				if (this.predicate.invoke(obj))
+				if (this.predicate.invoke(obj)) {
 					this.next = obj;
 					return true;
+				}
 			}
 			return false;
 		}

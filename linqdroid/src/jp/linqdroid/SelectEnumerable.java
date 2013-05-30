@@ -15,7 +15,7 @@ public class SelectEnumerable<T,TResult> extends Enumerable<TResult> {
 			}
 			@Override
 			public Iterator<TResult> invoke() {
-				return new SelectEnumerator<T, TResult>(this.source, this.selector);
+				return new SelectEnumerator<T, TResult>(this.source.iterator(),null , this.selector);
 			}
 		}.setParameter(source, selector);
 	}
@@ -43,7 +43,7 @@ public class SelectEnumerable<T,TResult> extends Enumerable<TResult> {
 			}
 			@Override
 			public Iterator<TResult> invoke() {
-				return new SelectEnumerator<T, TResult>(this.source, this.handler);
+				return new SelectEnumerator<T, TResult>(this.source.iterator(),null , this.handler);
 			}
 		}.setParameter(source, selector);
 	}

@@ -3,26 +3,25 @@ package jp.linqdroid;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import jp.linqdroid.IteratorStatus;
-
-public class SelectEnumerator<T,TResult> implements Enumerator<TResult> {
+/**
+ * 
+ * @author samejima
+ *
+ * @param <T>
+ */
+public class EnumeratorImple<T> implements Enumerator<T> {
 	protected Disposable disposable;
 	protected IteratorStatus status;
-	protected Iterator<T> source;
-	protected F1<T,TResult> selector;
+	protected  Iterator<T> source;
 	protected T next;
 
-	@SuppressWarnings("unused")
-	private  SelectEnumerator() { }
-
-	public SelectEnumerator(Iterator<T> source, Disposable disposable, F1<T,TResult> selector) {
+	public EnumeratorImple(Iterator<T> source, Disposable disposable) {
+		this.status  = IteratorStatus.BeforeEnumeration;
 		this.source = source;
 		this.disposable = disposable;
-		this.selector = selector;
 		this.next = null;
 	}
 
-	@Override
 	public boolean hasNext() {
 		//要素取得済みなら次はある
 		if (next != null) return true;
@@ -41,9 +40,7 @@ public class SelectEnumerator<T,TResult> implements Enumerator<TResult> {
 		}
 	}
 	
-
-	@Override
-	public TResult next() {
+	public T next() {
 		//破棄済み、未取得かつ次の要素が取れなければ例外送出
 		if (status == IteratorStatus.Disposed || (this.next == null && !this.hasNext())) {
 			throw new NoSuchElementException();
@@ -51,14 +48,12 @@ public class SelectEnumerator<T,TResult> implements Enumerator<TResult> {
 		//次の要素を戻り値として返却。取得済みは次回に備えてクリア
 		T result = this.next;
 		this.next = null;
-		return this.selector.invoke(result);
+		return result;
 	}
 	@Deprecated
-	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
 	}
-	@Override
 	public void dispose() {
 		if (disposable != null) {
 			disposable.dispose();
@@ -66,5 +61,14 @@ public class SelectEnumerator<T,TResult> implements Enumerator<TResult> {
 		status = IteratorStatus.Disposed;
 	}
 
+	public static class IteratorStatus {
+    	private final String status;
+    	private IteratorStatus(String status) {
+    		this.status = status;
+    	}
+    	public String toString() { return status; }
+    	public static final IteratorStatus BeforeEnumeration = new IteratorStatus("BeforeEnumeration");
+    	public static final IteratorStatus Enumerating = new IteratorStatus("Enumerating");
+    	public static final IteratorStatus Disposed = new IteratorStatus("Disposed");
+    }
 }
-

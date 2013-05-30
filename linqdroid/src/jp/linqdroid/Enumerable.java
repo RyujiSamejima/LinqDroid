@@ -14,7 +14,6 @@ import java.util.List;
  */
 public class Enumerable<T> implements Iterable<T> {
 	protected Iterable<T> source;
-
 	/**
 	 * 
 	 */
@@ -22,22 +21,40 @@ public class Enumerable<T> implements Iterable<T> {
 	protected Enumerable(Iterable<T> source) { 
 		this.source = source;
 	}
+	protected Enumerable(final Iterator<T> source) { 
+		this.source = new Iterable<T>() { 
+			@Override
+			public Iterator<T> iterator() {
+				return new EnumeratorImple<T>(source, null);
+			}
+		};
+	}
 	/**
 	 * 
 	 * @param source
 	 */
-	protected Enumerable(Iterator<T> source) { 
+	protected Enumerable(final Iterator<T> source,final Disposable disposable) { 
 		this.source = new Iterable<T>() { 
-			private Iterator<T> iterator;
-			public Iterable<T> setIterator(Iterator<T> iterator) {
-				this.iterator = iterator;
-				return this;
-			}
 			@Override
 			public Iterator<T> iterator() {
-				return iterator;
+				return new EnumeratorImple<T>(source, disposable);
 			}
-		}.setIterator(source);
+		};
+	}
+	protected Enumerable(Enumerable<T> source) { 
+		this.source = source;
+	}
+	/**
+	 * 
+	 * @param source
+	 */
+	protected Enumerable(final Enumerator<T> source) { 
+		this.source = new Iterable<T>() { 
+			@Override
+			public Iterator<T> iterator() {
+				return source;
+			}
+		};
 	}
 	/**
 	 * 
@@ -53,17 +70,45 @@ public class Enumerable<T> implements Iterable<T> {
 	 * @return
 	 */
 	public static <T> Enumerable<T> from(Iterable<T> source) {
-		return new Enumerable<T>() {
-			private Iterable<T> source;
-			public Enumerable<T> setSource(Iterable<T> source) {
-				this.source = source;
-				return this;
-			}
-			public Iterator<T> iterator() {
-				return source.iterator();
-			};
-		}.setSource(source);
+		return new Enumerable<T>(source);
 	}
+	/**
+	 * 
+	 * @param source
+	 * @return
+	 */
+	public static <T> Enumerable<T> from(Iterator<T> source) {
+		return new Enumerable<T>(source);
+	}
+	public static <T> Enumerable<T> from(Iterator<T> source, Disposable disposable) {
+		return new Enumerable<T>(source,disposable);
+	}
+	/**
+	 * 
+	 * @param item
+	 * @return
+	 */
+	public  static <T> Enumerable<T> singleReturn(final T item) {
+		return new Enumerable<T>(new Iterator<T>() {
+			private boolean before = true;
+			@Override
+			public boolean hasNext() {
+				return before;
+			}
+
+			@Override
+			public T next() {
+				before = false;
+				return item;
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		});
+	}
+
 	/**
 	 * 
 	 * @param array
@@ -106,11 +151,19 @@ public class Enumerable<T> implements Iterable<T> {
 	 * @param classType
 	 * @return
 	 */
-	public Enumerable<T> ofClass(final Class<?> classType) {
-		return new WhereEnumerable<T>(this, new F1<T,Boolean>() {
+	public <TResult> Enumerable<TResult> ofClass(final Class<TResult> classType) {
+		return new WhereSelectEnumerable<T, TResult>(this, new F1<T,Boolean>() {
+			//final Class<?> type = classType;
 			@Override
 			public Boolean invoke(T arg1) {
-				return (arg1.getClass() == classType);
+				return classType.isAssignableFrom(arg1.getClass());
+			}
+		} , new F1<T,TResult>() {
+			//final Class<?> type = classType;
+			@SuppressWarnings("unchecked")
+			@Override
+			public TResult invoke(T arg1) {
+				return (TResult)arg1;
 			}
 		});
 	}
@@ -149,55 +202,40 @@ public class Enumerable<T> implements Iterable<T> {
 	 * @param count
 	 * @return
 	 */
-	public Enumerable<T> skip(int count) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
-			private int limit = 0;
+	public Enumerable<T> skip(final int count) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private int counter = 0;
-			public Enumerator<T> setCount(final int limit) {
-				this.limit = limit;
-				return this;
-			}
 			public T next() {
-				while(this.counter++ < this.limit) {
+				while(this.counter++ < count) {
 					final T item = super.next();
 					if (item == null) return null;
 				}
 				return super.next();
 			}
-		}.setCount(count));
+		});
 	}
 	/**
 	 * 
 	 * @param predicate
 	 * @return
 	 */
-	public Enumerable<T> skipWhile(F1<T, Boolean> predicate) {
+	public Enumerable<T> skipWhile(final F1<T, Boolean> predicate) {
 		return this.skipWhile(new F2<T, Integer, Boolean>() {
-			private F1<T, Boolean> predicate;
-			public F2<T, Integer, Boolean> setPredicate(F1<T, Boolean> predicate) {
-				this.predicate = predicate;
-				return this;
-			}
 			@Override
 			public Boolean invoke(T arg1, Integer arg2)  {
-				return this.predicate.invoke(arg1);
+				return predicate.invoke(arg1);
 			}
-		}.setPredicate(predicate));
+		});
 	}	
 	/**
 	 * 
 	 * @param predicate
 	 * @return
 	 */
-	public Enumerable<T> skipWhile(F2<T, Integer, Boolean> predicate) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
+	public Enumerable<T> skipWhile(final F2<T, Integer, Boolean> predicate) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private boolean skipped = false;
 			private int counter = 0;
-			private F2<T, Integer, Boolean> predicate;
-			public Enumerator<T> setPredicate(F2<T, Integer, Boolean> predicate) {
-				this.predicate = predicate;
-				return this;
-			}
 			@Override
 			public T next() {
 				if (!this.skipped) {
@@ -205,95 +243,79 @@ public class Enumerable<T> implements Iterable<T> {
 					do {
 						item = super.next();
 						if (item == null) return null;
-					} while (this.predicate.invoke(item, counter++));
+					} while (predicate.invoke(item, counter++));
 					this.skipped = true;
 					return item;
 				}
 				return super.next();
 			}
-		}.setPredicate(predicate));
+		});
 	}	
 	/**
 	 * 
 	 * @param count
 	 * @return
 	 */
-	public Enumerable<T> take(int count) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
-			private int count = 0;
+	public Enumerable<T> take(final int count) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private int counter = 0;
-			public Enumerator<T> setCounter(int count) {
-				this.count = count;
-				return this;
-			}
 			@Override
-			public T next() {
-				T item;
-				if (counter++ < count && (item = super.next()) != null) {
-					return item;
+			public boolean hasNext() {
+				if (counter++ < count) {
+					return super.hasNext();
+				} else {
+					return false;
 				}
-				return null;
 			}
-		}.setCounter(count));
+		});
 	}
 	/**
 	 * 
 	 * @param predicate
 	 * @return
 	 */
-	public Enumerable<T> takeWhile(F1<T, Boolean> predicate) {
+	public Enumerable<T> takeWhile(final F1<T, Boolean> predicate) {
 		return this.takeWhile(new F2<T, Integer, Boolean>() {
-			private F1<T, Boolean> predicate;
-			public   F2<T, Integer, Boolean> setPredicate(F1<T, Boolean> predicate) {
-				this.predicate = predicate;
-				return this;
-			}
 			@Override
 			public Boolean invoke(T arg1, Integer arg2) {
-				return this.predicate.invoke(arg1);
+				return predicate.invoke(arg1);
 			}
-		}.setPredicate(predicate));
+		});
 	}	
 	/**
 	 * 
 	 * @param predicate
 	 * @return
 	 */
-	public Enumerable<T> takeWhile(F2<T, Integer, Boolean> predicate) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
+	public Enumerable<T> takeWhile(final F2<T, Integer, Boolean> predicate) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private boolean taking = true;
 			private int counter = 0;
-			private F2<T, Integer, Boolean> predicate;
-			public  Enumerator<T> setPredicate(F2<T, Integer, Boolean> predicate) {
-				this.predicate = predicate;
-				return this;
-			}
 			@Override
-			public T next() {
-				T item ;
-				if (taking) {
-					while ((item = super.next()) != null && (taking = this.predicate.invoke(item, counter++)) == true) {
-						return item;
+			public boolean hasNext() {
+				if (!taking) return false;
+				while (super.hasNext()) {
+					if (predicate.invoke(this.next, counter++)) {
+						return true;
+					} else {
+						taking = false;
+						this.next = null;
+						return false;
 					}
 				}
-				return null;
+				return false;
 			}
-		}.setPredicate(predicate));
+		});
 	}
 	/**
 	 * 
 	 * @param accumlator
 	 * @return
 	 */
-	public Enumerable<T> scan(F2<T, T, T> accumlator) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
+	public Enumerable<T> scan(final F2<T, T, T> accumlator) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private boolean isFirst = true;
 			private T result;
-			private F2<T, T, T> accumlator;
-			public Enumerator<T> setAccumlator(F2<T, T, T> accumlator) {
-				this.accumlator = accumlator;
-				return this;
-			}
 			@Override
 			public T next() {
 				T item = super.next();
@@ -302,13 +324,13 @@ public class Enumerable<T> implements Iterable<T> {
 						this.result =  item;
 						this.isFirst = false;
 					} else {
-						this.result = this.accumlator.invoke(this.result, item);
+						this.result = accumlator.invoke(this.result, item);
 					}
 					return result;
 				}
 				return null;
 			}
-		}.setAccumlator(accumlator));
+		});
 	}
 
 	/**
@@ -328,8 +350,8 @@ public class Enumerable<T> implements Iterable<T> {
 	 * @param selector
 	 * @return
 	 */
-	public <TResult> SelectManyEnumerator<T,TResult> selectMany(F1<T, Enumerator<TResult>> selector) {
-		return new SelectManyEnumerator<T, TResult>(this, selector);
+	public <TResult> Enumerable<TResult> selectMany(F1<T, Enumerable<TResult>> selector) {
+		return new Enumerable<TResult>(new SelectManyEnumerator<T, TResult>(this.iterator(), null, selector));
 	}
 	/**
 	 * 
@@ -344,7 +366,7 @@ public class Enumerable<T> implements Iterable<T> {
 				if (!result) {
 					list.add(arg);
 				}
-				return result;
+				return !result;
 			}
 		});
 	}
@@ -353,14 +375,9 @@ public class Enumerable<T> implements Iterable<T> {
 	 * @param second
 	 * @return
 	 */
-	public Enumerable<T> concat(Iterable<T> second) {
-		return new Enumerable<T>(new Enumerator<T>(this) {
+	public Enumerable<T> concat(final Iterable<T> second) {
+		return new Enumerable<T>(new EnumeratorImple<T>(this.iterator(), null) {
 			private boolean isSecond = false;
-			private Iterable<T> second;
-			public Enumerator<T> setSecond(Iterable<T> second) {
-				this.second =  second;
-				return this;
-			}
 			@Override
 			public boolean hasNext() 
 			{
@@ -368,50 +385,53 @@ public class Enumerable<T> implements Iterable<T> {
 					if (super.hasNext()) {
 						return true;
 					} else {
-						super.source = this.second.iterator();
+						super.status = IteratorStatus.BeforeEnumeration;
+						super.source = second.iterator();
+						isSecond = true;
 					}
 				}
 				return super.hasNext();
-				
 			}
-		}.setSecond(second));
-	}
-	public Enumerable<T> union(Iterable<T> second) {
-		return this.concat(second).disinct();
-	}
-	
-	public Enumerable<T> intersect(Iterable<T> second) {
-		return this.where(new F1<T,Boolean>() {
-			private List<T> secondList;
-			public F1<T,Boolean> setSecond(Iterable<T> second) {
-				this.secondList = Enumerable.from(second).toList();
-				return this;
-			}
-			public Boolean invoke(T arg) {
-				return this.secondList.contains(arg);
-			}
-		}.setSecond(second));
+		});
 	}
 	/**
 	 * 
 	 * @param second
 	 * @return
 	 */
-	public Enumerable<T> except(Iterable<T> second) {
-		return this.concat(second).where(new F1<T,Boolean>() {
-			private List<T> firstList;
-			private List<T> secondList;
-			public F1<T,Boolean> setTarget(Iterable<T> first, Iterable<T> second) {
-				this.firstList = Enumerable.from(first).toList();
-				this.secondList = Enumerable.from(second).toList();
-				return this;
-			}
+	public Enumerable<T> union(Iterable<T> second) {
+		return this.concat(second).disinct();
+	}
+	/**
+	 * 
+	 * @param second
+	 * @return
+	 */
+	public Enumerable<T> intersect(final Iterable<T> second) {
+		return this.where(new F1<T,Boolean>() {
+			private List<T> secondList = Enumerable.from(second).toList();
 			public Boolean invoke(T arg) {
-				boolean first = this.firstList.contains(arg);
-				boolean second = this.secondList.contains(arg);
-				return ((first && !second) || (!first && second));
+				return this.secondList.contains(arg);
 			}
-		}.setTarget(this, second));
+		});
+	}
+	/**
+	 * 
+	 * @param second
+	 * @return
+	 */
+	public Enumerable<T> except(final Iterable<T> second) {
+		return this.where(new F1<T,Boolean>() {
+			private List<T> list = Enumerable.from(second).toList();
+			@Override
+			public Boolean invoke(T arg) {
+				boolean result = list.contains(arg);
+				if (!result) {
+					list.add(arg);
+				}
+				return !result;
+			}
+		});
 	}
 	/**
 	 * 
@@ -709,5 +729,5 @@ public class Enumerable<T> implements Iterable<T> {
 		for (T item : this) {
 			action.invoke(item);
 		}
-	}
+	}	
 }

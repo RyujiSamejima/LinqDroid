@@ -16,7 +16,7 @@ public final class XNamespace  {
 	/**  */
     private final String uri;
 
-    private XNamespace(final String name, final String uri) {
+    public  XNamespace(final String name, final String uri) {
         this.name = name;
         this.uri = uri;
     }
